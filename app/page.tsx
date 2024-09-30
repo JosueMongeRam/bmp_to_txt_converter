@@ -1,101 +1,173 @@
-import Image from "next/image";
+"use client";
+import React, { useRef, useState } from "react";
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="https://nextjs.org/icons/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+  // Cambia el estado inicial para que use la URL de la imagen por defecto
+  const [image, setImage] = useState<string>("/images/image.gif");
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="https://nextjs.org/icons/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
+  const colorMap: { [key: string]: string } = {
+    "#000000": "0", // Negro
+    "#aa0000": "4", // Rojo
+    "#808080": "8", // Gris
+    "#ff5555": "C", // Rojo claro
+    "#0000aa": "1", // Azul
+    "#aa00aa": "5", // Magenta
+    "#5555ff": "9", // Azul claro
+    "#ff55ff": "D", // Magenta claro
+    "#00aa00": "2", // Verde
+    "#aa5500": "6", // Marrón
+    "#55ff55": "A", // Verde claro
+    "#ffff55": "E", // Amarillo
+    "#00aaaa": "3", // Cian
+    "#aaaaaa": "7", // Blanco opaco
+    "#55ffff": "B", // Celeste claro
+    "#ffffff": "F", // Blanco brillante
+  };
+
+  const colorDifference = (
+    color1: [number, number, number],
+    color2: [number, number, number]
+  ) => {
+    return Math.sqrt(
+      Math.pow(color1[0] - color2[0], 2) +
+        Math.pow(color1[1] - color2[1], 2) +
+        Math.pow(color1[2] - color2[2], 2)
+    );
+  };
+
+  const findClosestColor = (r: number, g: number, b: number) => {
+    let closestColor = "#000000";
+    let smallestDifference = Infinity;
+
+    for (const hex in colorMap) {
+      const r2 = parseInt(hex.substring(1, 3), 16);
+      const g2 = parseInt(hex.substring(3, 5), 16);
+      const b2 = parseInt(hex.substring(5, 7), 16);
+
+      const difference = colorDifference([r, g, b], [r2, g2, b2]);
+
+      if (difference < smallestDifference) {
+        smallestDifference = difference;
+        closestColor = hex;
+      }
+    }
+
+    return closestColor;
+  };
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setImage(URL.createObjectURL(file));
+    }
+  };
+
+  const handleConvertClick = () => {
+    if (canvasRef.current && image) {
+      const canvas = canvasRef.current;
+      const ctx = canvas.getContext("2d");
+
+      const img = new Image();
+      img.src = image;
+      img.onload = () => {
+        canvas.width = img.width;
+        canvas.height = img.height;
+        ctx?.drawImage(img, 0, 0);
+
+        const imageData = ctx?.getImageData(0, 0, img.width, img.height);
+        const pixels = imageData?.data;
+
+        if (pixels) {
+          let result = "";
+
+          // Procesamos los píxeles fila por fila y columna por columna
+          for (let y = 0; y < img.height; y++) {
+            for (let x = 0; x < img.width; x++) {
+              const index = (y * img.width + x) * 4; // Cada píxel tiene 4 valores (RGBA)
+              const r = pixels[index];
+              const g = pixels[index + 1];
+              const b = pixels[index + 2];
+
+              // Buscar el color más cercano
+              const closestHexColor = findClosestColor(r, g, b).toLowerCase();
+
+              // Mapear el color más cercano a un carácter
+              const char = colorMap[closestHexColor] || "?";
+              result += char;
+            }
+
+            // Añadimos "@" al final de cada fila
+            result += "@";
+          }
+
+          // Añadimos "%" al final del archivo
+          result += "%";
+
+          downloadTextFile(result);
+        }
+      };
+    }
+  };
+
+  const downloadTextFile = (text: string) => {
+    const blob = new Blob([text], { type: "text/plain" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "image.txt";
+    link.click();
+  };
+
+  const handleButtonClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  return (
+    <div
+      className={
+        "flex flex-col justify-center space-y-4 pt-9 items-center bg-black w-full h-screen max-h-screen text-white text-2xl"
+      }
+    >
+      <h1 className="text-white text-4xl font-bold italic">
+        Welcome to the BMP 16 bit image to TEXT converter
+      </h1>
+      <div className={"flex flex-row space-x-9 "}>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/bmp"
+          onChange={handleFileChange}
+          style={{ display: "none" }}
+        />
+        <button
+          className="bg-blue-500 text-white p-2 rounded"
+          onClick={handleButtonClick}
         >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
+          Select image
+        </button>
+        <button
+          className="bg-blue-500 text-white p-2 rounded"
+          onClick={handleConvertClick}
         >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+          Convert image
+        </button>
+      </div>
+      <canvas ref={canvasRef} style={{ display: "none" }}></canvas>
+
+      <div className={"flex justify-center items-start"}>
+        <img
+          className="size-96 object-cover"
+          src={image}
+          alt="Default GIF"
+          style={{ maxWidth: '100%', maxHeight: '400px' }} // Ajusta el tamaño de la imagen
+        />
+      </div>
+      <p className="font-bold italic">The image must be in BMP 16 bit format</p>
+      <div className="flex justify-center items-center flex-col h-1/4 pb-4">
+        <p className="font-bold italic">Made by Josue Monge R</p>
+        <p className="font-bold italic">Architecture 2024</p>
+      </div>
     </div>
   );
 }
